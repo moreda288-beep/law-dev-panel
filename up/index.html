@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex">
+<meta name="theme-color" content="#03045E">
+<title>رفع ورق للمكتب</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box}
+:root{--navy:#03045E;--blue:#0077B6;--mut:#5B6577;--line:#E3E6EB;--ok:#2F6B3F}
+body{margin:0;font-family:Cairo,system-ui,sans-serif;background:#F2F7FA;color:#1A2233;min-height:100vh}
+button{font:inherit;cursor:pointer}
+.hd{background:var(--navy);color:#fff;text-align:center;font-weight:800;font-size:18px;padding:16px 12px calc(16px);padding-top:max(16px,env(safe-area-inset-top))}
+.wrap{max-width:520px;margin:0 auto;padding:12px 12px 40px;display:flex;flex-direction:column;gap:12px}
+.c{background:#fff;border:1px solid var(--line);border-radius:20px;padding:16px}
+.drop{border:2px dashed #90E0EF;border-radius:20px;background:#F3FBFD;padding:16px;display:flex;flex-direction:column;gap:10px}
+.btn{height:52px;border-radius:14px;border:1px solid #DDE1E8;background:#fff;color:var(--navy);font-weight:700;font-size:16px;display:flex;align-items:center;justify-content:center;gap:10px;width:100%}
+.btn.pri{background:var(--navy);color:#fff;border:0}
+.btn.big{height:66px;font-size:18px}
+.btn:disabled{opacity:.55}
+.tog{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;border:1px solid var(--line);background:#fff;width:100%;text-align:start}
+.tog b{font-size:15px;display:block}.tog small{font-size:12.5px;color:var(--mut)}
+.sw{width:46px;height:28px;border-radius:14px;background:#D5DAE2;position:relative;flex-shrink:0;transition:background .2s}
+.sw::after{content:"";position:absolute;top:3px;right:3px;width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.2);transition:right .2s}
+.tog[aria-checked=true] .sw{background:var(--blue)}.tog[aria-checked=true] .sw::after{right:21px}
+.pages{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+.pg{position:relative;aspect-ratio:3/4;border-radius:8px;overflow:hidden;border:1px solid var(--line);background:#fff}
+.pg img{width:100%;height:100%;object-fit:cover;display:block}
+.pg .n{position:absolute;top:5px;right:5px;width:22px;height:22px;border-radius:11px;background:var(--navy);color:#fff;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.pg .tools{position:absolute;bottom:4px;left:4px;right:4px;display:flex;justify-content:space-between}
+.pg .tools button{width:30px;height:30px;border-radius:15px;border:0;background:rgba(3,4,94,.75);color:#fff;font-size:15px;display:flex;align-items:center;justify-content:center}
+.add{aspect-ratio:3/4;border-radius:8px;border:2px dashed #90E0EF;background:#F3FBFD;color:var(--blue);font-weight:700;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px}
+.size{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:14px;background:#F1F7F2;color:var(--ok);font-size:14px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chips button{height:38px;padding:0 14px;border-radius:19px;border:1px solid #DDE1E8;background:#fff;font-size:14px}
+.chips button[aria-pressed=true]{border-color:var(--blue);background:#E6F7FB;color:var(--navy);font-weight:700}
+.bar{height:10px;border-radius:5px;background:#E3E6EB;overflow:hidden}.bar i{display:block;height:100%;width:0;background:var(--blue);transition:width .3s}
+.center{text-align:center;display:flex;flex-direction:column;align-items:center;gap:12px;padding:50px 16px 0}
+.bad{background:#FBEEE7;color:#A3360A;border-radius:14px;padding:12px 14px;font-size:14px}
+.mut{color:var(--mut);font-size:13px;text-align:center}
+.hidden{display:none!important}
+</style>
+</head>
+<body>
+<div class="hd" id="hd">رفع ورق للمكتب</div>
+<div class="wrap" id="app"><div class="center"><span class="mut">بيحمّل…</span></div></div>
+<input type="file" id="cam" accept="image/*" capture="environment" class="hidden">
+<input type="file" id="pick" accept="image/*,application/pdf" multiple class="hidden">
+<script src="./jspdf.umd.min.js"></script>
+<script>
+const FN = 'https://sfeicaqpdpbivrfjvxdq.supabase.co/functions/v1/phone-upload';
+const KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InNmZWljYXFwZHBiaXZyZmp2eGRxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1NDQxNTIsImV4cCI6MjEwOTEyMDE1Mn0.oMGVhEM_nPkHpv_W2J6XcMOlgAUihp8AjEK5fWr1lDQ';
+const T = new URLSearchParams(location.search).get('t') || '';
+const KINDS = [['pleadings','صحيفة دعوى'],['memos','مذكرة'],['judgments','حكم'],['poa','توكيل'],['contracts','عقد'],['clientdocs','أخرى']];
+const S = { info:null, pages:[], enh:true, hq:false, kind:'', step:'start', pdfs:[], sent:0 };
+const $ = (id) => document.getElementById(id);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const api = (body) => fetch(FN, { method:'POST', headers:{ apikey:KEY, 'Content-Type':'application/json' }, body: JSON.stringify(body) }).then((r) => r.json());
+const fmtMB = (b) => (b / 1048576).toFixed(1);
+const until = (iso) => { try { return new Date(iso).toLocaleString('ar-EG-u-nu-latn', { weekday:'long', hour:'numeric', minute:'2-digit' }); } catch { return ''; } };
+
+// ===== الصور: تصغير + «تحسين الورق» (أبيض وأسود وتباين أعلى)
+function loadImg(file){ return new Promise((res, rej) => { const u = URL.createObjectURL(file); const i = new Image(); i.onload = () => { res(i); }; i.onerror = rej; i.src = u; }); }
+async function prep(page){
+  const max = S.hq ? 2600 : 1700, q = S.hq ? 0.86 : 0.7;
+  let w = page.img.naturalWidth, h = page.img.naturalHeight;
+  const r = Math.min(1, max / Math.max(w, h)); w = Math.round(w * r); h = Math.round(h * r);
+  const rot = page.rot % 360, swap = rot === 90 || rot === 270;
+  const c = document.createElement('canvas'); c.width = swap ? h : w; c.height = swap ? w : h;
+  const g = c.getContext('2d');
+  g.fillStyle = '#fff'; g.fillRect(0, 0, c.width, c.height);
+  g.translate(c.width / 2, c.height / 2); g.rotate(rot * Math.PI / 180);
+  if (S.enh) g.filter = 'grayscale(1) contrast(1.45) brightness(1.12)';
+  g.drawImage(page.img, -w / 2, -h / 2, w, h);
+  return { url: c.toDataURL('image/jpeg', q), w: c.width, h: c.height };
+}
+async function buildPdf(){
+  const { jsPDF } = window.jspdf;
+  let doc = null;
+  for (const p of S.pages) {
+    const x = await prep(p);
+    const pw = 595, ph = Math.round(595 * x.h / x.w); // عرض A4 بالنقط
+    const o = pw > ph ? 'l' : 'p';
+    if (!doc) doc = new jsPDF({ unit:'pt', format:[pw, ph], orientation:o, compress:true }); else doc.addPage([pw, ph], o);
+    doc.addImage(x.url, 'JPEG', 0, 0, pw, ph, undefined, 'FAST');
+  }
+  return doc.output('blob');
+}
+let est = { raw:0, out:0 }, estTimer;
+function estimate(){
+  clearTimeout(estTimer);
+  est.raw = S.pages.reduce((a, p) => a + p.size, 0); est.out = 0; render();
+  estTimer = setTimeout(async () => { if (!S.pages.length) return; try { const b = await buildPdf(); est.out = b.size; render(); } catch { /* */ } }, 350);
+}
+async function addFiles(files){
+  for (const f of files) {
+    if (f.type === 'application/pdf') { S.pdfs.push(f); continue; }
+    try { const img = await loadImg(f); S.pages.push({ img, src: img.src, size: f.size, rot: 0 }); } catch { /* صورة بايظة */ }
+  }
+  if (S.pages.length || S.pdfs.length) S.step = 'pages';
+  estimate();
+}
+$('cam').onchange = (e) => { addFiles([...e.target.files]); e.target.value = ''; };
+$('pick').onchange = (e) => { addFiles([...e.target.files]); e.target.value = ''; };
+
+async function send(){
+  S.step = 'up'; S.prog = 5; render();
+  try {
+    const blobs = [];
+    if (S.pages.length) blobs.push({ blob: await buildPdf(), pages: S.pages.length });
+    for (const f of S.pdfs) blobs.push({ blob: f, pages: 0 });
+    let i = 0;
+    for (const x of blobs) {
+      const s = await api({ action:'sign', t:T });
+      if (!s.ok) throw new Error(s.reason || 'sign');
+      const fd = new FormData(); fd.append('cacheControl', '3600'); fd.append('', new Blob([x.blob], { type:'application/pdf' }), 'doc.pdf');
+      const up = await fetch(s.url, { method:'PUT', body: fd });
+      if (!up.ok) throw new Error('upload ' + up.status);
+      const label = KINDS.find(([k]) => k === S.kind)?.[1];
+      const d = await api({ action:'done', t:T, path:s.path, kind:S.kind || 'clientdocs', name: label && S.kind !== 'clientdocs' ? label : '', pages:x.pages, size:x.blob.size });
+      if (!d.ok) throw new Error(d.reason || 'done');
+      i++; S.prog = Math.round(i / blobs.length * 100); render();
+    }
+    S.sent = S.pages.length || S.pdfs.length; S.step = 'done'; render();
+  } catch (e) {
+    S.step = 'pages'; S.err = String(e.message || e).includes('expired') ? 'اللينك ده خلص أو اتقفل — اطلب لينك جديد من المكتب' : 'الرفع ماكملش — اتأكد من النت وجرّب تاني'; render();
+  }
+}
+
+function tog(k, b, s){ return `<button type="button" class="tog" role="switch" aria-checked="${S[k]}" onclick="S.${k}=!S.${k};estimate()"><span style="flex:1"><b>${b}</b><small>${s}</small></span><span class="sw"></span></button>`; }
+function render(){
+  const a = $('app');
+  if (!S.info) return;
+  const head = `<div class="c"><b style="font-size:20px;color:#03045E;display:block">قضية ${esc(S.info.label || '')}</b>${S.info.client ? `<span style="font-size:15px;color:#3F4859">${esc(S.info.client)}</span>` : ''}</div>`;
+  const toggles = tog('enh', 'تحسين الورق', 'أبيض وأسود وأوضح — زي الاسكانر') + tog('hq', 'جودة عالية', 'للورق الرسمي — الحجم بيبقى أكبر');
+  if (S.step === 'start') {
+    a.innerHTML = head + `<div class="drop"><button type="button" class="btn pri big" onclick="$('cam').click()">${CAM}صوّر الورق</button><button type="button" class="btn" onclick="$('pick').click()">اختار من الصور أو الملفات</button></div>${toggles}
+      <div class="mut">اللينك ده للقضية دي بس — شغال لحد ${esc(until(S.info.expires_at))}</div>`;
+  } else if (S.step === 'pages') {
+    const pg = S.pages.map((p, i) => `<div class="pg"><img src="${p.src}" alt="صفحة ${i + 1}" style="transform:rotate(${p.rot}deg)${S.enh ? ';filter:grayscale(1) contrast(1.45) brightness(1.12)' : ''}"><span class="n">${i + 1}</span><span class="tools"><button type="button" aria-label="لف صفحة ${i + 1}" onclick="S.pages[${i}].rot+=90;estimate()">↻</button><button type="button" aria-label="امسح صفحة ${i + 1}" onclick="S.pages.splice(${i},1);if(!S.pages.length&&!S.pdfs.length)S.step='start';estimate()">×</button></span></div>`).join('');
+    const pdfs = S.pdfs.map((f, i) => `<div class="size" style="background:#F7FAFC;color:#1A2233"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M6 3h9l4 4v14H6z"/><path d="M14 3v5h5"/></svg><span style="flex:1">${esc(f.name)} · ${fmtMB(f.size)} ميجا</span><button type="button" class="btn" style="width:auto;height:34px;padding:0 10px" onclick="S.pdfs.splice(${i},1);if(!S.pages.length&&!S.pdfs.length)S.step='start';render()">×</button></div>`).join('');
+    const total = S.pages.length;
+    const size = total ? `<div class="size">✓<span><b>PDF واحد — ${est.out ? fmtMB(est.out) + ' ميجا' : '…'}</b><br><span style="font-size:12.5px">الصور كانت ${fmtMB(est.raw)} ميجا${S.hq ? '' : ' · اتصغرت عشان ترفع بسرعة'}</span></span></div>` : '';
+    a.innerHTML = head + `<div class="c" style="display:flex;flex-direction:column;gap:12px">
+      ${total ? `<b style="font-size:17px;color:#03045E">${total} ${total === 1 ? 'صفحة' : 'صفحات'}</b><div class="pages">${pg}<button type="button" class="add" onclick="$('cam').click()"><span style="font-size:24px">+</span>صفحة كمان</button></div>` : `<button type="button" class="btn" onclick="$('cam').click()">${CAM}صوّر صفحات</button>`}
+      ${size}${pdfs}
+      <div style="display:flex;flex-direction:column;gap:6px"><span style="font-size:13px;color:#5B6577">الورق ده إيه؟ (اختياري)</span><div class="chips">${KINDS.map(([k, l]) => `<button type="button" aria-pressed="${S.kind === k}" onclick="S.kind=S.kind==='${k}'?'':'${k}';render()">${l}</button>`).join('')}</div></div></div>
+      ${total ? toggles : ''}
+      ${S.err ? `<div class="bad">${esc(S.err)}</div>` : ''}
+      <button type="button" class="btn pri big" onclick="S.err='';send()">${UP}ابعت للمكتب</button>`;
+  } else if (S.step === 'up') {
+    a.innerHTML = head + `<div class="c" style="display:flex;flex-direction:column;gap:14px;text-align:center;margin-top:40px"><b style="font-size:18px;color:#03045E">بيرفع…</b><div class="bar"><i style="width:${S.prog}%"></i></div><span class="mut">ماتقفلش الصفحة لحد ما يخلص</span></div>`;
+  } else {
+    a.innerHTML = head + `<div class="center"><span style="width:96px;height:96px;border-radius:48px;background:#E6F0E8;display:flex;align-items:center;justify-content:center;font-size:48px;color:#2F6B3F">✓</span>
+      <b style="font-size:23px;color:#03045E">وصل للمكتب</b><span style="font-size:15px;color:#5B6577">هيظهر للمحامي دلوقتي في ملف القضية</span>
+      <button type="button" class="btn pri" style="margin-top:40px" onclick="S.pages=[];S.pdfs=[];S.kind='';S.step='start';render()">${CAM}ابعت ورق تاني</button></div>`;
+  }
+}
+const CAM = '<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M4 8h3l2-3h6l2 3h3v11H4z"/><circle cx="12" cy="13" r="3.5"/></svg>';
+const UP = '<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 16v3a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-3"/></svg>';
+
+(async () => {
+  if (!T) { $('app').innerHTML = '<div class="bad">اللينك ناقص — افتحه تاني من الرسالة أو صوّر الكود من جديد.</div>'; return; }
+  try {
+    const r = await api({ action:'info', t:T });
+    if (!r.ok) { $('app').innerHTML = '<div class="center"><b style="font-size:20px;color:#03045E">اللينك ده خلص</b><span class="mut" style="font-size:15px">اطلب من المكتب لينك جديد أو كود جديد.</span></div>'; return; }
+    S.info = r; render();
+  } catch { $('app').innerHTML = '<div class="bad">مفيش اتصال بالنت — جرّب تاني.</div>'; }
+})();
+</script>
+</body>
+</html>
